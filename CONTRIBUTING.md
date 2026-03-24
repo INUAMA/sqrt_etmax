@@ -28,5 +28,6 @@ Si encuentras un error o un resultado matemático inesperado en la distribución
 - Una descripción clara del problema.
 - El comportamiento esperado según la literatura (Etoh et al., Norma 5.2-IC).
 - Código o datos de ejemplo para reproducir el fallo.
+- **Nota sobre L-Momentos**: Ten en cuenta que el método `fit_lmoments` utiliza integración numérica aproximada debido a la falta de función cuantil explícita. Los problemas de convergencia en este método son una limitación matemática conocida.
 
 ¡Gracias por ayudar a mejorar las herramientas de hidrología!
