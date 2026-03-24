@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sqrt_etmax"
+version = "0.1.0"
+description = "Implementación de la distribución SQRT-ETmax para hidrología española."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "scipy>=1.7.0",
+    "numpy>=1.20.0"
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
