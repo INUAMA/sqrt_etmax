@@ -118,6 +118,11 @@ class sqrt_etmax_gen(rv_continuous):
     def fit_lmoments(self, data):
         """
         Ajuste mediante L-Momentos (igualando momentos muestrales y teóricos).
+        
+        ADVERTENCIA: La distribución SQRT-ETmax no tiene una función cuantil (inversa de la CDF) 
+        analítica. Por tanto, este método utiliza integración numérica iterativa para aproximar 
+        los L-momentos teóricos. Esto puede ser computacionalmente costoso y numéricamente inestable.
+        Se recomienda priorizar el uso de `fit_custom` (Máxima Verosimilitud).
 
         Args:
             data (array_like): Datos a ajustar.

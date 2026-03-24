@@ -34,7 +34,8 @@ from sqrt_etmax.distribution import sqrt_etmax
 datos = np.array([45.2, 56.1, 38.9, 78.4, 62.0, 41.5, 92.3, 55.6])
 
 # 2. Ajuste de parámetros (k, alpha)
-# Se recomienda usar fit_custom() o fit_lmoments() para mayor estabilidad matemática
+# Se recomienda encarecidamente usar fit_custom() (basado en Máxima Verosimilitud).
+# ⚠️ NOTA: fit_lmoments() está disponible, pero al carecer la distribución de inversa analítica, usa integración numérica aproximada y puede ser inestable.
 k_est, alpha_est = sqrt_etmax.fit_custom(datos)
 print(f"Parámetros ajustados -> k: {k_est:.4f}, alpha: {alpha_est:.4f}")
 
