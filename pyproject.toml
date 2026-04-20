@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sqrt_etmax"
-version = "0.1.0"
+version = "0.2.0"
 description = "Implementación de la distribución SQRT-ETmax para hidrología española."
 readme = "README.md"
 requires-python = ">=3.8"

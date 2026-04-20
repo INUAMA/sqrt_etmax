@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import optimize, integrate
+from scipy.special import lambertw
 from scipy.stats import rv_continuous
 
 class sqrt_etmax_gen(rv_continuous):
@@ -52,6 +53,24 @@ class sqrt_etmax_gen(rv_continuous):
             pdf_val = cdf_val * (k / 2.0) * np.exp(-np.sqrt(x_safe))
         
         return np.where(x <= 0, 0, pdf_val)
+
+    def _ppf(self, p, k):
+        """ Inversa exacta con Lambert W.
+            Elimina la necesidad de integración numérica
+        """
+        # La probabilidad en x=0 es exp(-k). Valores menores no tienen inversa real positiva.
+        p_min = np.exp(-k)
+        p_safe = np.maximum(p, p_min)
+        
+        # y = -ln(p) / k
+        y = -np.log(p_safe) / k
+        # resuelve (1+u)*exp(-u) = y
+        arg = -y / np.exp(1.0)
+        w = np.real(lambertw(arg, k=-1))
+        u = -1.0 - w
+        
+        # Si p < p_min, el cuantil es 0.0
+        return np.where(p < p_min, 0.0, u**2)
 
     def _logpdf(self, x, k):
         """
@@ -119,10 +138,8 @@ class sqrt_etmax_gen(rv_continuous):
         """
         Ajuste mediante L-Momentos (igualando momentos muestrales y teóricos).
         
-        ADVERTENCIA: La distribución SQRT-ETmax no tiene una función cuantil (inversa de la CDF) 
-        analítica. Por tanto, este método utiliza integración numérica iterativa para aproximar 
-        los L-momentos teóricos. Esto puede ser computacionalmente costoso y numéricamente inestable.
-        Se recomienda priorizar el uso de `fit_custom` (Máxima Verosimilitud).
+        Utiliza la función cuantil analítica exacta (_ppf) basada en la función W 
+        de Lambert para calcular los L-momentos teóricos con precisión y estabilidad.
 
         Args:
             data (array_like): Datos a ajustar.
@@ -130,66 +147,42 @@ class sqrt_etmax_gen(rv_continuous):
         Returns:
             list: Lista con los parámetros [k, alpha] estimados.
         """
-        # 1. Calcular L-Momentos Muestrales (b0 y b1 son PWMs)
-
         n = len(data)
         data_sorted = np.sort(data)
         
-        # b0 es simplemente la media
-        b0 = np.mean(data_sorted)
+        # 1. Calcular L-Momentos Muestrales
+        l1_sample = np.mean(data_sorted)
         
         # b1 usando el estimador de la Guía CEDEX/Hosking (i-0.35)/n
         i = np.arange(1, n + 1)
         weights = (i - 0.35) / n 
         b1 = np.sum(data_sorted * weights) / n
         
-        # L-Momentos muestrales
-        l1_sample = b0
-        l2_sample = 2 * b1 - b0
-        #t2_sample = l2_sample / l1_sample # L-CV muestral
-
-        # 2. Definir función para calcular L-Momentos Teóricos (integración numérica)
-        # Como no tiene inversa explícita, integramos x*pdf(x) para la media (l1)
-        # y usamos aproximaciones numéricas para l2.
+        l2_sample = 2 * b1 - l1_sample
         
-        def theoretical_statistics(params):
+        def get_theoretical_lmoments(params):
             k_est, alpha_est = params
             if k_est <= 0 or alpha_est <= 0:
-                return 1e6, 1e6 # Penalización
+                return 1e9, 1e9
             
-            # Definimos la PDF escalada localmente para integrar
-            scale = 1.0 / alpha_est
+            # El cuantil es 0 para p < exp(-k).
+            # Integrar desde ese punto evita zonas planas y previene el IntegrationWarning.
+            p_min = np.exp(-k_est)
             
-            # Media teórica (L1) = Integral(x * pdf(x))
-            # Para SQRT-ETmax, la media teórica se puede aproximar o integrar.
-            # Integramos numéricamente hasta un límite alto razonable
-            upper_limit = scale * 100 # Límite práctico
-            
-            def integrand_l1(x):
-                return x * self.pdf(x, k_est, loc=0, scale=scale)
-            
-            l1_theo, _ = integrate.quad(integrand_l1, 0, upper_limit)
-            
-            # L2 teórica = Integral( (2*F(x) - 1) * x * pdf(x) )
-            def integrand_l2(x):
-                F_x = self.cdf(x, k_est, loc=0, scale=scale)
-                return x * (2 * F_x - 1) * self.pdf(x, k_est, loc=0, scale=scale)
-            
-            l2_theo, _ = integrate.quad(integrand_l2, 0, upper_limit)
+            l1_theo, _ = integrate.quad(lambda p: self._ppf(p, k_est) / alpha_est, p_min, 1.0)
+            l2_theo, _ = integrate.quad(lambda p: (self._ppf(p, k_est) / alpha_est ) * (2*p -1), p_min, 1.0)
             
             return l1_theo, l2_theo
 
         # 3. Optimizar para igualar momentos
         def objective(params):
-            l1_theo, l2_theo = theoretical_statistics(params)
-            #t2_theo = l1_theo / l1_theo
+            l1_theo, l2_theo = get_theoretical_lmoments(params)
             # Minimizamos la diferencia cuadrática relativa
             err1 = (l1_theo - l1_sample) / l1_sample
             err2 = (l2_theo - l2_sample) / l2_sample
-            #err2 = (t2_theo - t2_sample) / t2_sample
             return err1**2 + err2**2
 
-        # Estimación inicial (puedes usar la media para alpha)
+        # Estimación inicial
         initial_guess = [1.0, 1.0/l1_sample] 
         
         res = optimize.minimize(objective, initial_guess, method='Nelder-Mead', tol=1e-4)
