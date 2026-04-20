@@ -41,3 +41,33 @@ def test_fit_custom_returns_valid_params():
     k_est, alpha_est = sqrt_etmax.fit_custom(data)
     assert k_est > 0
     assert alpha_est > 0
+
+def test_ppf_inverses_cdf():
+    """La función cuantil (PPF) debe ser la inversa exacta de la CDF."""
+    k = 1.5
+    # La CDF en x=0 es exp(-1.5) ~ 0.223. Evaluamos probabilidades mayores.
+    p = np.array([0.3, 0.5, 0.9, 0.95, 0.99])
+    
+    # Calculamos los cuantiles para estas probabilidades
+    x = sqrt_etmax.ppf(p, k)
+    # Verificamos que al aplicar la CDF a los cuantiles recuperamos 'p'
+    p_calc = sqrt_etmax.cdf(x, k)
+    
+    np.testing.assert_allclose(p, p_calc, rtol=1e-5)
+
+def test_ppf_below_minimum_probability():
+    """Para probabilidades por debajo de exp(-k), la PPF debe devolver 0."""
+    k = 1.5
+    p_min = np.exp(-k)
+    p = np.array([0.01, 0.1, p_min - 1e-5])
+    
+    x = sqrt_etmax.ppf(p, k)
+    np.testing.assert_allclose(x, 0.0, atol=1e-7)
+
+def test_fit_lmoments_returns_valid_params():
+    """El método fit_lmoments debe devolver parámetros k y alpha mayores que 0."""
+    np.random.seed(42)
+    data = np.random.exponential(scale=1.5, size=100)
+    k_est, alpha_est = sqrt_etmax.fit_lmoments(data)
+    assert k_est > 0
+    assert alpha_est > 0
