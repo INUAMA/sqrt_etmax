@@ -71,3 +71,73 @@ def test_fit_lmoments_returns_valid_params():
     k_est, alpha_est = sqrt_etmax.fit_lmoments(data)
     assert k_est > 0
     assert alpha_est > 0
+
+def test_ppf_cdf_consistency_wide():
+    """La PPF debe invertir la CDF en un barrido denso de probabilidades."""
+    k = 1.5
+    p_min = np.exp(-k)
+    p = np.linspace(p_min + 1e-6, 1 - 1e-9, 500)
+    x = sqrt_etmax.ppf(p, k)
+    np.testing.assert_allclose(sqrt_etmax.cdf(x, k), p, rtol=1e-6, atol=1e-9)
+
+def test_pdf_is_derivative_of_cdf():
+    """La PDF analítica debe coincidir con la derivada numérica de la CDF."""
+    k = 2.0
+    dist = sqrt_etmax.freeze_params(k, 0.7)
+    h = 1e-6
+    for x in [0.1, 1.0, 5.0, 20.0]:
+        num = (dist.cdf(x + h) - dist.cdf(x - h)) / (2 * h)
+        assert np.isclose(dist.pdf(x), num, rtol=1e-4)
+
+def test_ppf_matches_numerical_inversion():
+    """La PPF analítica (Lambert W) debe coincidir con la inversión numérica."""
+    from scipy.optimize import brentq
+    k = 1.5
+    dist = sqrt_etmax.freeze_params(k, 0.7)
+    for p in [0.3, 0.5, 0.9, 0.99, 0.999]:
+        x = dist.ppf(p)
+        f = lambda x: dist.cdf(x) - p
+        x_num = brentq(f, 0.0, 1e6)
+        assert np.isclose(x, x_num, rtol=1e-8)
+
+def test_rvs_atom_probability():
+    """rvs debe reproducir la masa de probabilidad en el origen exp(-k)."""
+    k = 2.0
+    alpha = 0.7
+    n = 200000
+    sample = sqrt_etmax.rvs(k, scale=1.0 / alpha, size=n, random_state=7)
+    frac = np.mean(sample == 0)
+    assert abs(frac - np.exp(-k)) < 2e-3
+
+def test_fit_lmoments_recovers_parameters():
+    """fit_lmoments debe recuperar los parámetros de una muestra sintética conocida."""
+    k_true, alpha_true = 2.0, 0.7
+    n = 8000
+    data = sqrt_etmax.rvs(k_true, scale=1.0 / alpha_true, size=n, random_state=42)
+    k_est, alpha_est = sqrt_etmax.fit_lmoments(data)
+    assert abs(k_est - k_true) / k_true < 0.05
+    assert abs(alpha_est - alpha_true) / alpha_true < 0.05
+
+def test_fit_lmoments_recovers_design_quantiles():
+    """fit_lmoments debe recuperar los cuantiles de diseño (T=10, 100, 1000)."""
+    k_true, alpha_true = 2.0, 0.7
+    n = 8000
+    data = sqrt_etmax.rvs(k_true, scale=1.0 / alpha_true, size=n, random_state=42)
+    k_est, alpha_est = sqrt_etmax.fit_lmoments(data)
+    for T in [10, 100, 1000]:
+        p = 1.0 - 1.0 / T
+        q_true = sqrt_etmax.ppf(p, k_true) / alpha_true
+        q_est = sqrt_etmax.ppf(p, k_est) / alpha_est
+        assert abs(q_est - q_true) / q_true < 0.05
+
+def test_fit_custom_recovers_design_quantiles():
+    """fit_custom (MLE) debe aproximar los cuantiles de diseño dentro de una tolerancia amplia."""
+    k_true, alpha_true = 2.0, 0.7
+    n = 8000
+    data = sqrt_etmax.rvs(k_true, scale=1.0 / alpha_true, size=n, random_state=42)
+    k_est, alpha_est = sqrt_etmax.fit_custom(data)
+    for T in [10, 100, 1000]:
+        p = 1.0 - 1.0 / T
+        q_true = sqrt_etmax.ppf(p, k_true) / alpha_true
+        q_est = sqrt_etmax.ppf(p, k_est) / alpha_est
+        assert abs(q_est - q_true) / q_true < 0.30
