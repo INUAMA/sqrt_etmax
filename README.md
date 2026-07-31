@@ -8,7 +8,13 @@ Este paquete está construido sobre la interfaz `scipy.stats.rv_continuous`, lo 
 
 ## Instalación
 
-Actualmente el paquete se puede instalar desde el código fuente. Clona este repositorio y ejecuta:
+Una vez publicado en el índice PyPI, el paquete se instalará directamente con:
+
+```bash
+pip install sqrt_etmax
+```
+
+Mientras tanto, se puede instalar desde el código fuente. Clona este repositorio y ejecuta:
 
 ```bash
 pip install .
@@ -49,6 +55,12 @@ valor_T100 = dist.ppf(probabilidad_no_excedencia)
 
 print(f"Precipitación para T={T} años: {valor_T100:.2f} mm")
 ```
+
+## Cómo citar
+
+Si utilizas `sqrt_etmax` en tu investigación, cita el artículo correspondiente:
+
+> Molina-Pérez, G., et al. (pendiente de publicación). *sqrt_etmax: distribución SQRT-ETmax para Python*. Journal of Open Source Software. DOI: [pendiente]
 
 ## Ejecución de Pruebas (Tests)
 
