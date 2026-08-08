@@ -4,18 +4,26 @@ Todos los cambios notables de este proyecto se documentarán en este archivo.
 
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [Unreleased]
+
+### Añadido
+- Documentación de la parametrización `alpha`/`scale` y la masa en el origen en el README.
+- Archivo `AGENTS.md` para agentes de IA con contexto del proyecto.
+- Directorio `planning/` con documentación interna de desarrollo.
+
+### Cambiado
+- Renombrado `AGENT.md` a `AGENTS.md` (consistencia con otros repositorios).
+
+## [0.2.0] - 2026-08-06
 
 ### Añadido
 - Suite completa de pruebas unitarias para CDF, PPF, PDF, `rvs` y ajuste por L-momentos y máxima verosimilitud (15 tests).
 - Integración continua en GitHub Actions para Python 3.8-3.12 (`.github/workflows/ci.yml`).
-
-## [0.2.0] - 2026-04-20
+- Workflow de publicación automática en PyPI (`.github/workflows/publish.yml`).
+- Autores y licencia en `pyproject.toml`.
 
 ### Cambiado
 - `fit_lmoments()` ahora usa la función cuantil analítica exacta (función W de Lambert), mejorando precisión y rendimiento (~500 veces más rápido que la búsqueda numérica).
-
-### Añadido
 - Implementación de la inversa analítica de la CDF (PPF) mediante la función W de Lambert.
 
 ## [0.1.0] - 2026-03-24
