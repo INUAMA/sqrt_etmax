@@ -56,6 +56,50 @@ valor_T100 = dist.ppf(probabilidad_no_excedencia)
 print(f"Precipitación para T={T} años: {valor_T100:.2f} mm")
 ```
 
+## Parametrización y masa en el origen
+
+La API de `sqrt_etmax` utiliza `alpha` como parámetro de escala inversa.
+Cuando se crea una distribución congelada, la relación con la convención de
+SciPy es:
+
+```text
+scale = 1 / alpha
+```
+
+La función de distribución acumulada para `x >= 0` es:
+
+```text
+F(x) = exp[-k * (1 + sqrt(alpha * x)) * exp(-sqrt(alpha * x))]
+```
+
+Por tanto, el límite por la derecha en el origen es:
+
+```text
+F(0+) = exp(-k)
+```
+
+Este valor representa la masa de probabilidad asociada al origen. El objeto
+de SciPy tiene soporte `x >= 0` y puede devolver `cdf(0) = 0` por la
+convención de `rv_continuous`; para comprobar el límite matemático debe
+evaluarse un valor positivo muy próximo a cero:
+
+```python
+import numpy as np
+from sqrt_etmax.distribution import sqrt_etmax
+
+k = 2.0
+alpha = 0.7
+dist = sqrt_etmax.freeze_params(k, alpha)
+
+print(f"scale = {1 / alpha:.6f}")
+print(f"F(0+) esperado = {np.exp(-k):.6f}")
+print(f"F(0+) calculado = {dist.cdf(1e-10):.6f}")
+
+# rvs reproduce la masa en el origen aproximadamente como exp(-k).
+sample = dist.rvs(size=10000, random_state=42)
+print(f"Fracción de ceros = {np.mean(sample == 0):.3f}")
+```
+
 ## Cómo citar
 
 Si utilizas `sqrt_etmax` en tu investigación, cita el artículo correspondiente:
