@@ -6,6 +6,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
 
 ## [Unreleased]
 
+### Cambiado
+- **Planificado**: refactorización de `fit_lmoments()` para sustituir la optimización Nelder-Mead 2D por una solución exacta 1D: `brentq` sobre el L-ratio τ₂ (función exclusiva de `k`), cuadratura de Gauss-Legendre de 256 nodos para los L-momentos teóricos, PWM muestrales insesgados de Hosking (1990) y obtención analítica de `alpha`. Mejora la exactitud (igualación exacta de momentos), garantiza la convergencia y reduce el coste computacional.
+
 ### Añadido
 - Documentación de la parametrización `alpha`/`scale` y la masa en el origen en el README.
 - Archivo `AGENTS.md` para agentes de IA con contexto del proyecto.
