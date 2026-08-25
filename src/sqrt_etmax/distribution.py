@@ -1,7 +1,16 @@
 import numpy as np
-from scipy import optimize, integrate
+from scipy import optimize
+from scipy.optimize import brentq
 from scipy.special import lambertw
 from scipy.stats import rv_continuous
+from numpy.polynomial.legendre import leggauss
+
+# Constantes de módulo: nodos y pesos de Gauss-Legendre (256 nodos)
+_GL_NODES, _GL_WEIGHTS = leggauss(256)
+
+# Límites del bracket para brentq
+_K_MIN = 0.001
+_K_MAX = 50000.0
 
 class sqrt_etmax_gen(rv_continuous):
     """
@@ -134,59 +143,125 @@ class sqrt_etmax_gen(rv_continuous):
         result = optimize.minimize(neg_log_likelihood, initial_guess, args=(data,), method='Nelder-Mead')
         return result.x # Retorna [k, alpha]
 
-    def fit_lmoments(self, data):
-        """
-        Ajuste mediante L-Momentos (igualando momentos muestrales y teóricos).
-        
-        Utiliza la función cuantil analítica exacta (_ppf) basada en la función W 
-        de Lambert para calcular los L-momentos teóricos con precisión y estabilidad.
+    def _lmoments_theoretical(self, k):
+        """L-momentos teóricos estandarizados (α=1) por cuadratura Gauss-Legendre.
+
+        Calcula los dos primeros L-momentos teóricos de la distribución
+        SQRT-ETmax con α=1 usando cuadratura de Gauss-Legendre con 256 nodos
+        sobre la PPF analítica, integrando desde p_min = exp(−k) hasta 1.
+
+        La integral se realiza mediante cambio de variable de [−1, 1] a
+        [p_min, 1]:
+            p = p_min + (1 − p_min)(t + 1)/2
+            dp = (1 − p_min)/2 · dt
 
         Args:
-            data (array_like): Datos a ajustar.
-            
+            k (float): Parámetro de forma.
+
         Returns:
-            list: Lista con los parámetros [k, alpha] estimados.
+            tuple: (a1, a2) donde a1 = ∫ Q(p,k) dp y a2 = ∫ Q(p,k)(2p−1) dp.
+        """
+        p_min = np.exp(-k)
+        p = p_min + (1.0 - p_min) * (_GL_NODES + 1.0) / 2.0
+        q = self._ppf(p, k)
+        w_scale = (1.0 - p_min) / 2.0
+        a1 = float(np.sum(q * _GL_WEIGHTS) * w_scale)
+        a2 = float(np.sum(q * (2.0 * p - 1.0) * _GL_WEIGHTS) * w_scale)
+        return a1, a2
+
+    def fit_lmoments(self, data):
+        """Ajuste por L-momentos (Hosking, 1990; Hosking & Wallis, 1997).
+
+        Estima los parámetros (k, α) de la distribución SQRT-ETmax igualando
+        los dos primeros L-momentos muestrales y teóricos. El método aprovecha
+        la separabilidad de la PPF en forma y escala para reducir el problema
+        a una ecuación 1D:
+
+        1. Calcula los PWM muestrales insesgados de Hosking (1990) con la
+           muestra ordenada x_(j), j = 0..n−1:
+               b1 = Σ x_(j)·j / (n(n−1))
+               l1 = media muestral
+               l2 = 2b1 − l1
+        2. τ₂(k) = λ₂/λ₁ = a₂(k)/a₁(k) es función exclusiva de k (la PPF
+           es separable en forma y escala: x(p) = Q(p,k)/α).
+        3. Resuelve τ₂(k) = τ₂_muestral por el método de Brent (brentq)
+           con tolerancia xtol=1e-12.
+        4. Calcula α de forma analítica: α = a₁(k̂)/l1.
+
+        Los L-momentos teóricos se obtienen por cuadratura de Gauss-Legendre
+        con 256 nodos sobre la PPF analítica (función W de Lambert), integrando
+        desde p_min = exp(−k) hasta 1.
+
+        Args:
+            data (array_like): Datos a ajustar (máximos anuales de precipitación,
+                serie de n ≥ 2 observaciones positivas).
+
+        Returns:
+            list: Lista con los parámetros [k, alpha] estimados, donde k > 0
+                es el parámetro de forma y α > 0 es el parámetro de escala inverso.
+
+        Raises:
+            ValueError: Si n < 2 (se necesitan al menos 2 datos para PWM) o
+                si l1 ≤ 0 o l2 ≤ 0 (serie constante o datos incompatibles).
+            RuntimeError: Si τ₂ muestral cae fuera del rango alcanzable por
+                la familia SQRT-ETmax, o si brentq no converge.
         """
         n = len(data)
+        if n < 2:
+            raise ValueError(
+                f"Se necesitan al menos 2 datos para L-momentos, se recibieron {n}"
+            )
+
         data_sorted = np.sort(data)
-        
-        # 1. Calcular L-Momentos Muestrales
-        l1_sample = np.mean(data_sorted)
-        
-        # b1 usando el estimador de la Guía CEDEX/Hosking (i-0.35)/n
-        i = np.arange(1, n + 1)
-        weights = (i - 0.35) / n 
-        b1 = np.sum(data_sorted * weights) / n
-        
-        l2_sample = 2 * b1 - l1_sample
-        
-        def get_theoretical_lmoments(params):
-            k_est, alpha_est = params
-            if k_est <= 0 or alpha_est <= 0:
-                return 1e9, 1e9
-            
-            # El cuantil es 0 para p < exp(-k).
-            # Integrar desde ese punto evita zonas planas y previene el IntegrationWarning.
-            p_min = np.exp(-k_est)
-            
-            l1_theo, _ = integrate.quad(lambda p: self._ppf(p, k_est) / alpha_est, p_min, 1.0)
-            l2_theo, _ = integrate.quad(lambda p: (self._ppf(p, k_est) / alpha_est ) * (2*p -1), p_min, 1.0)
-            
-            return l1_theo, l2_theo
+        i = np.arange(n, dtype=np.float64)
 
-        # 3. Optimizar para igualar momentos
-        def objective(params):
-            l1_theo, l2_theo = get_theoretical_lmoments(params)
-            # Minimizamos la diferencia cuadrática relativa
-            err1 = (l1_theo - l1_sample) / l1_sample
-            err2 = (l2_theo - l2_sample) / l2_sample
-            return err1**2 + err2**2
+        # PWM muestrales insesgados de Hosking (1990)
+        b1 = np.sum(data_sorted * i) / (n * (n - 1.0))
+        l1 = np.mean(data_sorted)
+        l2 = 2.0 * b1 - l1
 
-        # Estimación inicial
-        initial_guess = [1.0, 1.0/l1_sample] 
-        
-        res = optimize.minimize(objective, initial_guess, method='Nelder-Mead', tol=1e-4)
-        return res.x # Retorna [k, alpha]
+        if l1 <= 0:
+            raise ValueError(
+                f"L1 (media) debe ser positiva, se obtuvo {l1}"
+            )
+        if l2 <= 0:
+            raise ValueError(
+                f"L2 (escala) debe ser positiva, se obtuvo {l2}. "
+                "Posible serie constante."
+            )
+
+        tau2_sample = l2 / l1
+
+        # Rango alcanzable de τ₂(k): τ₂ es decreciente en k
+        a1_kmin, a2_kmin = self._lmoments_theoretical(_K_MIN)
+        a1_kmax, a2_kmax = self._lmoments_theoretical(_K_MAX)
+        tau2_min = a2_kmax / a1_kmax  # τ₂(K_MAX) — mínimo
+        tau2_max = a2_kmin / a1_kmin  # τ₂(K_MIN) — máximo
+
+        if tau2_sample <= tau2_min or tau2_sample >= tau2_max:
+            raise RuntimeError(
+                f"τ₂ muestral ({tau2_sample:.6f}) fuera del rango alcanzable "
+                f"por SQRT-ETmax: ({tau2_min:.6f}, {tau2_max:.6f}). "
+                "La familia no puede representar estos datos."
+            )
+
+        # Resolver τ₂(k) = τ₂_muestral por brentq
+        def tau2_diff(k):
+            a1_k, a2_k = self._lmoments_theoretical(k)
+            return a2_k / a1_k - tau2_sample
+
+        try:
+            k_hat = brentq(tau2_diff, _K_MIN, _K_MAX, xtol=1e-12)
+        except Exception as e:
+            raise RuntimeError(
+                f"brentq no convergió para τ₂ = {tau2_sample:.6f}: {e}"
+            ) from e
+
+        # α analítico: α = a₁(k̂) / l1
+        a1_hat, _ = self._lmoments_theoretical(k_hat)
+        alpha_hat = a1_hat / l1
+
+        return [k_hat, alpha_hat]
 
     def freeze_params(self, k, alpha):
         """
