@@ -1,6 +1,10 @@
 import numpy as np
 import pytest
+from numpy.polynomial.legendre import leggauss
 from sqrt_etmax.distribution import sqrt_etmax
+
+# Nodos y pesos de Gauss-Legendre (256 nodos), idénticos a los de la implementación
+_GL_NODES, _GL_WEIGHTS = leggauss(256)
 
 def test_cdf_at_zero():
     """La CDF tendiendo a 0 por la derecha debe ser exp(-k)."""
@@ -141,3 +145,60 @@ def test_fit_custom_recovers_design_quantiles():
         q_true = sqrt_etmax.ppf(p, k_true) / alpha_true
         q_est = sqrt_etmax.ppf(p, k_est) / alpha_est
         assert abs(q_est - q_true) / q_true < 0.30
+
+
+# ---------------------------------------------------------------------------
+# Tests nuevos: reimplementación fit_lmoments (Paso 3)
+# ---------------------------------------------------------------------------
+
+def test_fit_lmoments_exact_moment_matching():
+    """Los L-momentos teóricos de (k̂, α̂) ajustados deben igualar los muestrales.
+
+    Verifica la propiedad clave del estimador exacto (brentq + GL-256):
+    con los parámetros ajustados, los L-momentos teóricos coinciden con los
+    PWM muestrales insesgados de Hosking dentro de tolerancia numérica.
+
+    Los L-momentos teóricos se calculan por cuadratura de Gauss-Legendre
+    (256 nodos) sobre la PPF, el mismo método que usa fit_lmoments internamente,
+    para verificar el matching exacto hasta precisión de máquina.
+    """
+    k_true, alpha_true = 2.0, 0.7
+    data = sqrt_etmax.rvs(k_true, scale=1.0 / alpha_true, size=8000, random_state=42)
+    k_hat, alpha_hat = sqrt_etmax.fit_lmoments(data)
+
+    # --- PWM muestrales insesgados de Hosking (índice 0-based) ---
+    n = len(data)
+    x_sorted = np.sort(data)
+    idx = np.arange(n, dtype=np.float64)
+    b1 = np.sum(x_sorted * idx) / (n * (n - 1.0))
+    l1 = np.mean(x_sorted)
+    l2 = 2.0 * b1 - l1
+
+    # --- L-momentos teóricos por Gauss-Legendre 256 sobre la PPF ---
+    # Mismo método que la implementación interna de fit_lmoments
+    p_min = np.exp(-k_hat)
+    p_gl = p_min + (1.0 - p_min) * (_GL_NODES + 1.0) / 2.0
+    w_scale = (1.0 - p_min) / 2.0
+    q_vals = sqrt_etmax.ppf(p_gl, k_hat, scale=1.0 / alpha_hat)
+
+    l1_theo = float(np.sum(q_vals * _GL_WEIGHTS) * w_scale)
+    l2_theo = float(np.sum(q_vals * (2.0 * p_gl - 1.0) * _GL_WEIGHTS) * w_scale)
+
+    np.testing.assert_allclose(l1_theo, l1, rtol=1e-8, atol=1e-8,
+                               err_msg="L1 teórico no coincide con muestral")
+    np.testing.assert_allclose(l2_theo, l2, rtol=1e-8, atol=1e-8,
+                               err_msg="L2 teórico no coincide con muestral")
+
+
+def test_fit_lmoments_raises_on_constant_data():
+    """Una serie constante debe provocar ValueError (l₂ = 0, varianza nula)."""
+    data = np.ones(50)
+    with pytest.raises(ValueError):
+        sqrt_etmax.fit_lmoments(data)
+
+
+def test_fit_lmoments_raises_on_too_few_data():
+    """Una muestra de un solo valor debe provocar ValueError (n < 2)."""
+    data = np.array([5.0])
+    with pytest.raises(ValueError):
+        sqrt_etmax.fit_lmoments(data)
