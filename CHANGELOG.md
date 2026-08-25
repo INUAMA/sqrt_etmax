@@ -6,10 +6,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
 
 ## [Unreleased]
 
+### Cambiado
+- Refactorización completada de `fit_lmoments()`: sustitución de la optimización Nelder-Mead 2D por una solución exacta 1D mediante `brentq` sobre el L-ratio τ₂ (función exclusiva de `k`), cuadratura de Gauss-Legendre de 256 nodos para los L-momentos teóricos, PWM muestrales insesgados de Hosking (1990) y obtención analítica de `alpha`. Mejora la exactitud (igualación exacta de momentos), garantiza la convergencia y reduce el coste computacional.
+
 ### Añadido
 - Documentación de la parametrización `alpha`/`scale` y la masa en el origen en el README.
 - Archivo `AGENTS.md` para agentes de IA con contexto del proyecto.
 - Directorio `planning/` con documentación interna de desarrollo.
+- 3 nuevos tests del estimador L-momentos (`test_fit_lmoments_exact_moment_matching`, `test_fit_lmoments_raises_on_constant_data`, `test_fit_lmoments_raises_on_too_few_data`).
+- Subagentes de opencode (`.opencode/agents/`) y sección de orquestación en `AGENTS.md`.
 
 ### Cambiado
 - Renombrado `AGENT.md` a `AGENTS.md` (consistencia con otros repositorios).

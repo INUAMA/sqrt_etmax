@@ -56,6 +56,11 @@ python -m build
 
 ## Git Workflow
 
+- Antes de empezar trabajo nuevo, crear (o localizar) un issue en GitHub que
+  describa la tarea; issues y descripciones de PR se escriben en inglés, con
+  el label apropiado (`enhancement`, `documentation`, `bug`, ...).
+- Toda PR debe vincularse a su issue con `Closes #N` en la primera línea de
+  su descripción.
 - Crear una rama de trabajo antes de editar: `git switch -c <tipo>/<descripción>`
 - No commitear directamente a `main`
 - Hacer push de la rama de trabajo: `git push -u origin <branch>`
@@ -65,5 +70,27 @@ python -m build
 
 - **Soporte**: `[0, ∞)` con masa de probabilidad en el origen: `F(0+) = exp(-k)`.
 - **PPF analítica**: Usa la rama -1 de la función W de Lambert (`scipy.special.lambertw`).
-- **Ajuste por L-momentos**: Integración numérica sobre la PPF + optimización Nelder-Mead.
+- **Ajuste por L-momentos**: brentq sobre τ₂(k) + Gauss-Legendre 256 nodos; PWM insesgado de Hosking (1990).
 - **Ajuste por MLE**: Nelder-Mead sobre log-likelihood manual con penalización para parámetros no válidos.
+
+## Orquestación de subagentes (ejecución de planes)
+
+Al ejecutar planes de desarrollo, el agente principal (build) actúa como
+orquestador usando los subagentes de `.opencode/agents/`:
+
+| Subagente | Modelo | Rol | Archivos |
+|---|---|---|---|
+| `implementador` | opencode/mimo-v2.5-free | Núcleo numérico | `src/sqrt_etmax/` |
+| `tester` | opencode/mimo-v2.5-free | Tests y pytest | `tests/` |
+| `documentador` | opencode/nemotron-3-ultra-free | Documentación | `AGENTS.md`, `CHANGELOG.md`, `planning/` |
+
+Reglas de orquestación:
+- Lanzar los subagentes en paralelo (una sola respuesta, varias llamadas
+  `task`), cada uno con un prompt completo y autocontenido (los subagentes
+  no ven el contexto del orquestador).
+- Los ámbitos de archivos son disjuntos: no hay conflictos de edición.
+- Dependencia: `tester` escribe los tests en paralelo, pero la ejecución
+  final de `pytest` se realiza cuando `implementador` haya terminado.
+- El orquestador verifica el trabajo: revisa `git diff` de cada subagente,
+  ejecuta `pytest tests/ -v` (deben pasar 18/18) y comprueba la coherencia
+  de la documentación antes de commit y push.
