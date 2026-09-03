@@ -208,3 +208,6 @@ __marimo__/
 
 # Planning interno (no versionado)
 planning/
+
+# Configuración interna de agentes de IA (no versionado)
+.opencode/
