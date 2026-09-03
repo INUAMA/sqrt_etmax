@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sqrt_etmax"
-version = "0.2.0"
+version = "0.3.0"
 description = "Implementación de la distribución SQRT-ETmax para hidrología española."
 readme = "README.md"
 authors = [{name = "Gabriel Molina", email = "gabriel.molina@um.es"}]
