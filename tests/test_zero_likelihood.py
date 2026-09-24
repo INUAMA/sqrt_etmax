@@ -20,7 +20,12 @@ def test_un_cero_aporta_k_a_la_verosimilitud_negativa(monkeypatch, k, alpha):
     def captura_objetivo(funcion, inicio, args, method):
         parametros = np.array([k, alpha])
         evaluaciones.append(float(funcion(parametros, *args)))
-        return SimpleNamespace(x=parametros)
+        return SimpleNamespace(
+            success=True,
+            x=parametros,
+            fun=evaluaciones[-1],
+            message="Evaluación simulada correcta",
+        )
     
     monkeypatch.setattr(
         "sqrt_etmax.distribution.optimize.minimize",
@@ -42,7 +47,12 @@ def test_verosimilitud_positiva_coincide_con_densidad(monkeypatch):
     def capturar_objetivo(funcion, inicio, args, method):
         parametros = np.array([k, alpha])
         evaluaciones.append(float(funcion(parametros, *args)))
-        return SimpleNamespace(x=parametros)
+        return SimpleNamespace(
+            success=True,
+            x=parametros,
+            fun=evaluaciones[-1],
+            message="Evaluación simulada correcta",
+        )
 
     monkeypatch.setattr(
         "sqrt_etmax.distribution.optimize.minimize",
