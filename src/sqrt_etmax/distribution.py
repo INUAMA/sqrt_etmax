@@ -113,6 +113,14 @@ class sqrt_etmax_gen(rv_continuous):
             
         Returns:
             list: Lista con los parámetros [k, alpha] estimados.
+        Notas:
+            Los ceros exactos aportan -k a la log-verosimilitud,
+            correspondiente a P(X=0) = exp(-k). Los valores positivos
+            aportan su log-densidad.
+
+            Este ajuste no interpreta los ceros como datos ausentes,
+            censurados o redondeados. La corrección no modifica la API
+            pública de la distribución ni los controles de convergencia.
         """
 
         def neg_log_likelihood(params, data):
@@ -131,7 +139,14 @@ class sqrt_etmax_gen(rv_continuous):
             # Equivalente a la parte derivativa de _logpdf
             term2 = np.log(k * alpha / 2.0) - sqrt_ax
             
-            return -np.sum(term1 + term2)
+            # Los ceros aportan Log(P(X=0)) = -k
+            # Los valores positivos conservan su Log-densidad
+            log_aportaciones = np.where(
+                data == 0,
+                -k,
+                term1 + term2
+            )
+            return -np.sum(log_aportaciones)
 
         # Estimación inicial de parámetros (Semillas)
         # Basado en aproximaciones de momentos (Salas, 2004)
