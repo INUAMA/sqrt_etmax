@@ -17,6 +17,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   parámetros, la coherencia con la densidad positiva y un ajuste
   mixto contrastado con una referencia de verosimilitud perfilada.
 
+- La API pública incluye la masa puntual en el extremo inferior:
+  CDF, supervivencia y sus logaritmos son coherentes, también para
+  distribuciones congeladas y transformaciones loc/scale. Se mejora
+  la estabilidad numérica en el átomo. Resuelve #13.
+
 ## [0.3.0] - 2026-09-03
 
 ### Cambiado
