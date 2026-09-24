@@ -139,8 +139,14 @@ class sqrt_etmax_gen(rv_continuous):
             aportan su log-densidad.
 
             Este ajuste no interpreta los ceros como datos ausentes,
-            censurados o redondeados. La corrección no modifica la API
-            pública de la distribución ni los controles de convergencia.
+            censurados o redondeados. No realiza reintentos automáticos.
+            Un resultado aceptado no garantiza un máximo global
+            de la verosimilitud..
+
+        Raises:
+            RuntimeError: Si el optimizador no converge, devuelve
+                parámetros no finitos o no positivos, o el valor
+                final del objetivo no es finito.
         """
 
         def neg_log_likelihood(params, data):
@@ -173,9 +179,28 @@ class sqrt_etmax_gen(rv_continuous):
         mean = np.mean(data)
         # Semilla heurística: alpha ~ 1/mean, k ~ 1
         initial_guess = [1.0, 1.0/mean]
-        
+
         # Optimización Nelder-Mead (robusta para funciones no diferenciables)
         result = optimize.minimize(neg_log_likelihood, initial_guess, args=(data,), method='Nelder-Mead')
+
+        if not result.success:
+            raise RuntimeError(
+                f"El ajuste MLE no convergió: {result.message}"
+            )
+
+        if (
+            not np.all(np.isfinite(result.x))
+            or np.any(result.x <= 0)
+        ):
+            raise RuntimeError(
+                "El ajuste MLE devolvió parámetros no válidos."
+            )
+
+        if not np.isfinite(result.fun):
+            raise RuntimeError(
+                "El ajuste MLE devolvió un objetivo no finito."
+            )
+
         return result.x # Retorna [k, alpha]
 
     def _lmoments_theoretical(self, k):

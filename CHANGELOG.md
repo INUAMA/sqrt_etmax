@@ -11,16 +11,20 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   para los ceros exactos: cada cero aporta `-k` a la
   log-verosimilitud. Se conserva la contribución de los valores
   positivos. Resuelve #11.
+- La API pública incluye la masa puntual en el extremo inferior:
+  CDF, supervivencia y sus logaritmos son coherentes, también para
+  distribuciones congeladas y transformaciones loc/scale. Se mejora
+  la estabilidad numérica en el átomo. Resuelve #13.
+- `fit_custom()` lanza `RuntimeError` ante fallos del optimizador,
+  parámetros no finitos o no positivos, u objetivos no finitos.
+  Los fallos de convergencia incluyen el diagnóstico del optimizador.
+  Se conserva el retorno de parámetros para resultados válidos.
+  Resuelve #15.
 
 ### Añadido
 - Pruebas de regresión para la contribución de ceros con distintos
   parámetros, la coherencia con la densidad positiva y un ajuste
   mixto contrastado con una referencia de verosimilitud perfilada.
-
-- La API pública incluye la masa puntual en el extremo inferior:
-  CDF, supervivencia y sus logaritmos son coherentes, también para
-  distribuciones congeladas y transformaciones loc/scale. Se mejora
-  la estabilidad numérica en el átomo. Resuelve #13.
 
 ## [0.3.0] - 2026-09-03
 
