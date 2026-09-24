@@ -6,6 +6,17 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
 
 ## [Unreleased]
 
+### Corregido
+- `fit_custom()` utiliza la masa de probabilidad `P(X=0)=exp(-k)`
+  para los ceros exactos: cada cero aporta `-k` a la
+  log-verosimilitud. Se conserva la contribución de los valores
+  positivos. Resuelve #11.
+
+### Añadido
+- Pruebas de regresión para la contribución de ceros con distintos
+  parámetros, la coherencia con la densidad positiva y un ajuste
+  mixto contrastado con una referencia de verosimilitud perfilada.
+
 ## [0.3.0] - 2026-09-03
 
 ### Cambiado
