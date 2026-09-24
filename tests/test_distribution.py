@@ -10,8 +10,8 @@ def test_cdf_at_zero():
     """La CDF tendiendo a 0 por la derecha debe ser exp(-k)."""
     k = 1.5
     # Recordatorio matemático: F(0) = exp(-k * (1 + 0) * exp(0)) = exp(-k)
-    # Nota: Scipy fuerza cdf(a)=0 en rv_continuous si a=0.0. 
-    # Por ello evaluamos el límite por la derecha.
+    # Comprobamos el límite por la derecha.
+    # La evaluación exacta en cero se prueba en test_zero_probability_api.py.
     expected = np.exp(-k)
     assert np.isclose(sqrt_etmax.cdf(1e-10, k), expected)
 
@@ -189,13 +189,11 @@ def test_fit_lmoments_exact_moment_matching():
     np.testing.assert_allclose(l2_theo, l2, rtol=1e-8, atol=1e-8,
                                err_msg="L2 teórico no coincide con muestral")
 
-
 def test_fit_lmoments_raises_on_constant_data():
     """Una serie constante debe provocar ValueError (l₂ = 0, varianza nula)."""
     data = np.ones(50)
     with pytest.raises(ValueError):
         sqrt_etmax.fit_lmoments(data)
-
 
 def test_fit_lmoments_raises_on_too_few_data():
     """Una muestra de un solo valor debe provocar ValueError (n < 2)."""

@@ -21,6 +21,26 @@ class sqrt_etmax_gen(rv_continuous):
         k (float): Parámetro de forma (shape).
         alpha (float, opcional): Parámetro de escala inverso. Para scipy, scale = 1/alpha.
     """
+    def _open_support_mask(self, x, *args):
+        """Incluye el extremo inferior donde está la masa puntual."""
+        a, b = self._get_support(*args)
+
+        with np.errstate(invalid="ignore"):
+            return (a <= x) & (x < b)
+
+    def _logcdf(self, x, k):
+        """Calcula el logaritmo de la CDF sin exponenciar primero."""
+        raiz = np.sqrt(x)
+        return -k * (1 + raiz) * np.exp(-raiz)
+
+    def _sf(self, x, k):
+        """Calcula la supervivencia evitando restar números próximos."""
+        return -np.expm1(self._logcdf(x, k))
+
+    def _logsf(self, x, k):
+        """Calcula el logaritmo de la supervivencia."""
+        with np.errstate(divide="ignore"):
+            return np.log(self._sf(x, k))
     
     def _cdf(self, x, k):
         """

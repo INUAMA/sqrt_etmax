@@ -75,13 +75,18 @@ F(x) = exp[-k * (1 + sqrt(alpha * x)) * exp(-sqrt(alpha * x))]
 Por tanto, el límite por la derecha en el origen es:
 
 ```text
-F(0+) = exp(-k)
+F(0) = F(0+) = exp(-k)
 ```
 
-Este valor representa la masa de probabilidad asociada al origen. El objeto
-de SciPy tiene soporte `x >= 0` y puede devolver `cdf(0) = 0` por la
-convención de `rv_continuous`; para comprobar el límite matemático debe
-evaluarse un valor positivo muy próximo a cero:
+La distribución tiene una masa de probabilidad `P(X=0)=exp(-k)`.
+La CDF pública incluye esa masa: `cdf(0)=exp(-k)`, mientras que
+`sf(0)=1-exp(-k)`. Los métodos `logcdf` y `logsf` calculan las
+probabilidades correspondientes en escala logarítmica.
+
+Con `loc` distinto de cero, el átomo se sitúa en `loc` y conserva
+su probabilidad. `scale` no cambia esa masa. La densidad continua
+y la probabilidad puntual son conceptos distintos: `pdf(0)` no
+representa la masa en el origen.
 
 ```python
 import numpy as np
@@ -92,8 +97,8 @@ alpha = 0.7
 dist = sqrt_etmax.freeze_params(k, alpha)
 
 print(f"scale = {1 / alpha:.6f}")
-print(f"F(0+) esperado = {np.exp(-k):.6f}")
-print(f"F(0+) calculado = {dist.cdf(1e-10):.6f}")
+print(f"F(0) esperado = {np.exp(-k):.6f}")
+print(f"F(0) calculado = {dist.cdf(0.0):.6f}")
 
 # rvs reproduce la masa en el origen aproximadamente como exp(-k).
 sample = dist.rvs(size=10000, random_state=42)
