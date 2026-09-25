@@ -78,6 +78,30 @@ def _validate_sample(data):
 
     return data
 
+def _validate_positive_scalar(value, name):
+    """Valida y normaliza un parámetro escalar real y positivo."""
+    if isinstance(value, (bool, np.bool_)) or not isinstance(
+        value, (int, float, np.integer, np.floating)
+    ):
+        raise ValueError(
+            f"El parámetro {name} debe ser un escalar real "
+            "de tipo entero o flotante, no booleano."
+        )
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            f"El parámetro {name} no se puede representar como float."
+        ) from exc
+
+    if not np.isfinite(value) or value <= 0:
+        raise ValueError(
+            f"El parámetro {name} debe ser finito y estrictamente positivo."
+        )
+
+    return value
+
 class sqrt_etmax_gen(rv_continuous):
     """
     Implementación de la distribución SQRT-ETmax para hidrología española.
@@ -392,21 +416,40 @@ class sqrt_etmax_gen(rv_continuous):
         return [k_hat, alpha_hat]
 
     def freeze_params(self, k, alpha):
-        """
-        Convierte los parámetros k y alpha (de fit_custom) a un objeto Scipy listo para usar.
-        
+        """Crea una distribución congelada con parámetros validados.
+
+        Admite enteros y flotantes escalares de Python y NumPy,
+        que se normalizan a float.
+
         Args:
-            k (float): Parámetro de forma.
-            alpha (float): Parámetro de escala inverso.
-            
+            k (float): Parámetro de forma, finito y estrictamente positivo.
+            alpha (float): Escala inversa, finita y estrictamente positiva.
+
         Returns:
-            scipy.stats.distributions.rv_frozen: Distribución con parámetros congelados.
-            
-        Ejemplo:
-            >>> dist = sqrt_etmax.freeze_params(k, alpha)
-            >>> caudal_T100 = dist.ppf(0.99)
+            scipy.stats.distributions.rv_frozen: Distribución con loc=0
+                y scale=1/alpha.
+
+        Raises:
+            ValueError: Si un parámetro tiene un tipo no admitido, no puede
+                representarse como float finito y positivo, o su escala
+                derivada no es finita y estrictamente positiva.
+
+        Examples:
+            >>> dist = sqrt_etmax.freeze_params(2.0, 0.7)
+            >>> cuantil_99 = dist.ppf(0.99)
         """
-        return self(k, loc=0, scale=1.0/alpha)
+        k = _validate_positive_scalar(k, "k")
+        alpha = _validate_positive_scalar(alpha, "alpha")
+
+        scale = 1.0 / alpha
+
+        if not np.isfinite(scale) or scale <= 0:
+            raise ValueError(
+                "El parámetro alpha no permite representar una escala "
+                "finita y estrictamente positiva."
+            )
+
+        return self(k, loc=0, scale=scale)
 
 # Instancia global de la distribución
 sqrt_etmax = sqrt_etmax_gen(name='sqrt_etmax', a=0.0)

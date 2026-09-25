@@ -87,6 +87,22 @@ SciPy es:
 scale = 1 / alpha
 ```
 
+El método `freeze_params(k, alpha)` admite enteros y flotantes escalares
+de Python y NumPy, que normaliza a float. Ambos parámetros deben ser
+finitos y estrictamente positivos.
+
+Se rechazan booleanos, cadenas, complejos, valores enmascarados, listas
+y arrays, incluidos los arrays de dimensión cero. Los errores producen
+`ValueError` e identifican el parámetro correspondiente.
+
+También se comprueba que `scale = 1 / alpha` sea finita y estrictamente
+positiva. Un `alpha` positivo demasiado pequeño puede producir una
+escala infinita por desbordamiento; en ese caso se comunica el límite
+de representación numérica antes de construir la distribución.
+
+Este contrato corresponde al método de conveniencia `freeze_params`.
+
+
 La función de distribución acumulada para `x >= 0` es:
 
 ```text
