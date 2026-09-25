@@ -371,6 +371,12 @@ class sqrt_etmax_gen(rv_continuous):
         Gauss-Legendre con 256 nodos sobre la PPF, integrando desde
         p_min = exp(-k) hasta 1.
 
+        La búsqueda de k utiliza el intervalo numérico [0.001, 50000].
+        El L-ratio muestral debe situarse estrictamente entre los
+        valores calculados en sus extremos. Estos límites delimitan
+        la búsqueda del algoritmo, no el dominio matemático de la
+        distribución.
+
         Args:
             data (array_like): Muestra unidimensional de al menos dos
                 observaciones reales, finitas y no negativas, con al
@@ -383,8 +389,9 @@ class sqrt_etmax_gen(rv_continuous):
         Raises:
             ValueError: Si la muestra incumple el contrato de entrada
                 o sus L-momentos muestrales L1 o L2 no son positivos.
-            RuntimeError: Si τ₂ muestral cae fuera del rango alcanzable por
-                la familia SQRT-ETmax, o si brentq no converge.
+            RuntimeError: Si τ₂ muestral queda fuera del rango numérico
+                utilizado por el intervalo de búsqueda de k, o si
+                brentq no converge.
         """
         data = _validate_sample(data)
         n = len(data)
@@ -409,7 +416,7 @@ class sqrt_etmax_gen(rv_continuous):
 
         tau2_sample = l2 / l1
 
-        # Rango alcanzable de τ₂(k): τ₂ es decreciente en k
+        # Rango numérico de τ₂ utilizado por el intervalo de búsqueda.
         a1_kmin, a2_kmin = self._lmoments_theoretical(_K_MIN)
         a1_kmax, a2_kmax = self._lmoments_theoretical(_K_MAX)
         tau2_min = a2_kmax / a1_kmax  # τ₂(K_MAX) — mínimo
@@ -417,9 +424,9 @@ class sqrt_etmax_gen(rv_continuous):
 
         if tau2_sample <= tau2_min or tau2_sample >= tau2_max:
             raise RuntimeError(
-                f"τ₂ muestral ({tau2_sample:.6f}) fuera del rango alcanzable "
-                f"por SQRT-ETmax: ({tau2_min:.6f}, {tau2_max:.6f}). "
-                "La familia no puede representar estos datos."
+                f"τ₂ muestral ({tau2_sample:.6f}) fuera del rango numérico "
+                f"({tau2_min:.6f}, {tau2_max:.6f}) evaluado en el intervalo "
+                f"de búsqueda de k [{_K_MIN:g}, {_K_MAX:g}]."
             )
 
         # Resolver τ₂(k) = τ₂_muestral por brentq

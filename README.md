@@ -77,6 +77,20 @@ hacerlas pasar por muestras unidimensionales.
 Las entradas inválidas producen `ValueError` antes del ajuste numérico.
 Superar la validación no garantiza que el ajuste sea viable o converja.
 
+### Intervalo de búsqueda de L-momentos
+
+`fit_lmoments()` busca el parámetro `k` entre `0.001` y `50000`.
+El L-ratio muestral debe situarse estrictamente entre los valores
+calculados numéricamente en esos extremos.
+
+Cuando no cumple esta condición, se lanza `RuntimeError` indicando
+el L-ratio observado, el rango numérico calculado y los límites
+de búsqueda de `k`.
+
+Este diagnóstico describe una limitación del procedimiento numérico;
+por sí solo no demuestra incompatibilidad con toda la familia
+SQRT-ETmax. La ampliación del intervalo requiere evaluar también
+la precisión de la cuadratura utilizada.
 
 ## Parametrización y masa en el origen
 
