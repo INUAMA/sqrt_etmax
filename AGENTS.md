@@ -69,7 +69,7 @@ python -m build
 ## Notas de Implementación
 
 - **Soporte**: `[0, ∞)` con masa de probabilidad en el origen: `F(0+) = exp(-k)`.
-- **PPF analítica**: Usa la rama -1 de la función W de Lambert (`scipy.special.lambertw`).
+- **PPF**: devuelve cero en el átomo; utiliza la rama -1 de Lambert W fuera de la zona próxima al salto y `gammaincinv` con `log1p` cerca de él.
 - **Ajuste por L-momentos**: brentq sobre τ₂(k) + Gauss-Legendre 256 nodos; PWM insesgado de Hosking (1990).
 - **Ajuste por MLE**: Nelder-Mead sobre log-likelihood manual con penalización para parámetros no válidos.
 

@@ -30,6 +30,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   tipos incompatibles, valores no finitos o no positivos y escalas
   derivadas no representables mediante `ValueError`. Normaliza los
   escalares admitidos de Python y NumPy a float. Resuelve #19.
+  - `ppf()` devuelve cero en todo el intervalo correspondiente al
+  átomo, incluido `p = exp(-k)`. Cerca del salto utiliza `log1p`
+  y la inversa de la gamma incompleta para mejorar la precisión.
+  Las probabilidades del átomo no pasan por la fórmula de Lambert.
+  Resuelve #21.
 
 ### Añadido
 - Pruebas de regresión para la contribución de ceros con distintos
@@ -41,6 +46,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
 - Pruebas de validación de parámetros, límites de conversión a float
   y conservación de la CDF, el átomo y los cuantiles al utilizar
   parámetros válidos en `freeze_params()`.
+- Pruebas de cuantiles en el átomo y sus proximidades, incluyendo
+  una referencia numérica independiente, monotonía, extremos,
+  broadcasting y distribuciones congeladas con loc/scale.
 
 ## [0.3.0] - 2026-09-03
 

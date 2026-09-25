@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import optimize
 from scipy.optimize import brentq
-from scipy.special import lambertw
+from scipy.special import gammaincinv, lambertw
 from scipy.stats import rv_continuous
 from numpy.polynomial.legendre import leggauss
 
@@ -106,7 +106,7 @@ class sqrt_etmax_gen(rv_continuous):
     """
     Implementación de la distribución SQRT-ETmax para hidrología española.
     Referencia: Etoh et al. (1987), Salas (2004), Norma 5.2-IC.
-    
+
     Args:
         k (float): Parámetro de forma (shape).
         alpha (float, opcional): Parámetro de escala inverso. Para scipy, scale = 1/alpha.
@@ -131,7 +131,7 @@ class sqrt_etmax_gen(rv_continuous):
         """Calcula el logaritmo de la supervivencia."""
         with np.errstate(divide="ignore"):
             return np.log(self._sf(x, k))
-    
+
     def _cdf(self, x, k):
         """
         Función de distribución acumulada (CDF).
@@ -140,14 +140,14 @@ class sqrt_etmax_gen(rv_continuous):
         Args:
             x (array_like): Cuantiles normalizados.
             k (float): Parámetro de forma.
-            
+
         Returns:
             ndarray: Valores de la probabilidad acumulada.
         """
         # Protección contra raíces de números negativos
         x_safe = np.where(x < 0, 0, x)
         sqrt_x = np.sqrt(x_safe)
-        
+
         return np.exp(-k * (1 + sqrt_x) * np.exp(-sqrt_x))
 
     def _pdf(self, x, k):
@@ -159,37 +159,62 @@ class sqrt_etmax_gen(rv_continuous):
         Args:
             x (array_like): Cuantiles normalizados.
             k (float): Parámetro de forma.
-            
+
         Returns:
             ndarray: Valores de densidad de probabilidad.
         """
         x_safe = np.where(x <= 0, 0, x)
         # Calculamos la CDF internamente para reutilizar
         cdf_val = self._cdf(x_safe, k)
-        
+
         # Evitamos división por cero o valores inválidos
         with np.errstate(divide='ignore', invalid='ignore'):
             pdf_val = cdf_val * (k / 2.0) * np.exp(-np.sqrt(x_safe))
-        
+
         return np.where(x <= 0, 0, pdf_val)
 
     def _ppf(self, p, k):
-        """ Inversa exacta con Lambert W.
-            Elimina la necesidad de integración numérica
+        """Calcula cuantiles, incluyendo la masa puntual en el origen.
+        Devuelve cero para las probabilidades del átomo. Cerca del
+        salto utiliza la inversa de la gamma incompleta y log1p;
+        para las restantes probabilidades positivas utiliza Lambert W.
+
+        Args:
+            p (array_like): Probabilidades acumuladas.
+            k (array_like): Parámetro de forma.
+
+        Returns:
+            numpy.ndarray: Cuantiles estandarizados.
         """
-        # La probabilidad en x=0 es exp(-k). Valores menores no tienen inversa real positiva.
+        p, k = np.broadcast_arrays(p, k)
         p_min = np.exp(-k)
-        p_safe = np.maximum(p, p_min)
-        
-        # y = -ln(p) / k
-        y = -np.log(p_safe) / k
-        # resuelve (1+u)*exp(-u) = y
-        arg = -y / np.exp(1.0)
-        w = np.real(lambertw(arg, k=-1))
-        u = -1.0 - w
-        
-        # Si p < p_min, el cuantil es 0.0
-        return np.where(p < p_min, 0.0, u**2)
+        cuantiles = np.zeros_like(p, dtype=float)
+        positivos = p > p_min
+
+        if np.any(positivos):
+            p_pos = p[positivos]
+            k_pos = k[positivos]
+            p0 = p_min[positivos]
+            y = -np.log(p_pos) / k_pos
+            u = np.empty_like(y)
+
+            cerca = (y > 1.0 - 1e-6) & (p0 > 0.0)
+
+            # gammainc(2, u) = 1 - (1 + u) * exp(-u).
+            # log1p conserva la distancia al salto sin restar 1 - y.
+            delta = np.log1p(
+                (p_pos[cerca] - p0[cerca]) / p0[cerca]
+            ) / k_pos[cerca]
+            u[cerca] = gammaincinv(2.0, delta)
+
+            # Fuera de la zona próxima al salto usamos Lambert W.
+            arg = -y[~cerca] / np.exp(1.0)
+            w = np.real(lambertw(arg, k=-1))
+            u[~cerca] = -1.0 - w
+
+            cuantiles[positivos] = u**2
+
+        return cuantiles
 
     def _logpdf(self, x, k):
         """
@@ -199,30 +224,30 @@ class sqrt_etmax_gen(rv_continuous):
         Args:
             x (array_like): Cuantiles normalizados.
             k (float): Parámetro de forma.
-            
+
         Returns:
             ndarray: Logaritmo natural de la densidad de probabilidad.
         """
         x_safe = np.where(x < 0, 0, x)
         sqrt_x = np.sqrt(x_safe)
-        
+
         # Término proveniente de ln(F(x))
         ln_cdf = -k * (1 + sqrt_x) * np.exp(-sqrt_x)
         # Término restante de la derivada
         ln_rest = np.log(k / 2.0) - sqrt_x
-        
+
         return np.where(x <= 0, -np.inf, ln_cdf + ln_rest)
 
     def fit_custom(self, data):
         """
         Método de ajuste robusto usando optimización directa de Log-Likelihood.
         El método.fit() genérico de Scipy puede fallar con esta función no estándar.
-        
+
         Args:
             data (array_like): Muestra unidimensional de al menos dos
                 observaciones reales, finitas y no negativas, con al
                 menos dos valores distintos. Puede incluir ceros.
-            
+
         Returns:
             numpy.ndarray: Parámetros [k, alpha] estimados.
         Notas:
@@ -247,18 +272,18 @@ class sqrt_etmax_gen(rv_continuous):
             k, alpha = params
             if k <= 0 or alpha <= 0:
                 return np.inf # Penalización infinita para restringir el dominio (k>0, alpha>0)
-            
+
             # Log-Likelihood manual para mayor precisión numérica
             # L = sum( ln(f(xi)) )
             sqrt_ax = np.sqrt(alpha * data) # alpha actúa como inverso de scale
-            
+
             # Término 1 proveniente de ln(F(x))
             # Equivalente a la lógica en _cdf pero vectorizado
             term1 = -k * (1 + sqrt_ax) * np.exp(-sqrt_ax)
             # Término 2 proveniente de ln(derivada)
             # Equivalente a la parte derivativa de _logpdf
             term2 = np.log(k * alpha / 2.0) - sqrt_ax
-            
+
             # Los ceros aportan Log(P(X=0)) = -k
             # Los valores positivos conservan su Log-densidad
             log_aportaciones = np.where(
@@ -342,9 +367,9 @@ class sqrt_etmax_gen(rv_continuous):
            con tolerancia xtol=1e-12.
         4. Calcula α de forma analítica: α = a₁(k̂)/l1.
 
-        Los L-momentos teóricos se obtienen por cuadratura de Gauss-Legendre
-        con 256 nodos sobre la PPF analítica (función W de Lambert), integrando
-        desde p_min = exp(−k) hasta 1.
+        Los L-momentos teóricos se obtienen por cuadratura de
+        Gauss-Legendre con 256 nodos sobre la PPF, integrando desde
+        p_min = exp(-k) hasta 1.
 
         Args:
             data (array_like): Muestra unidimensional de al menos dos
