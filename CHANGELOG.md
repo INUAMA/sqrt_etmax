@@ -30,7 +30,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   tipos incompatibles, valores no finitos o no positivos y escalas
   derivadas no representables mediante `ValueError`. Normaliza los
   escalares admitidos de Python y NumPy a float. Resuelve #19.
-  - `ppf()` devuelve cero en todo el intervalo correspondiente al
+- `ppf()` devuelve cero en todo el intervalo correspondiente al
   átomo, incluido `p = exp(-k)`. Cerca del salto utiliza `log1p`
   y la inversa de la gamma incompleta para mejorar la precisión.
   Las probabilidades del átomo no pasan por la fórmula de Lambert.
