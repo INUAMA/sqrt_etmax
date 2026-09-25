@@ -35,6 +35,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   y la inversa de la gamma incompleta para mejorar la precisión.
   Las probabilidades del átomo no pasan por la fórmula de Lambert.
   Resuelve #21.
+- `fit_lmoments()` identifica explícitamente las limitaciones de su
+  intervalo numérico de búsqueda. El diagnóstico incluye los límites
+  de k, el L-ratio muestral y el rango numérico calculado, evitando
+  atribuir la limitación a toda la familia matemática. Resuelve #23.
 
 ### Añadido
 - Pruebas de regresión para la contribución de ceros con distintos
@@ -49,6 +53,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
 - Pruebas de cuantiles en el átomo y sus proximidades, incluyendo
   una referencia numérica independiente, monotonía, extremos,
   broadcasting y distribuciones congeladas con loc/scale.
+- Pruebas del diagnóstico de L-momentos para L-ratios inferiores
+  y superiores al rango numérico de búsqueda.
 
 ## [0.3.0] - 2026-09-03
 
