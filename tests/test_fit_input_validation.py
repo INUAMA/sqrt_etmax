@@ -9,10 +9,10 @@ def test_ajuste_equivalente_con_lista_y_array(metodo):
     """La misma muestra debe producir el mismo ajuste con lista y array."""
     datos = [0.0, 0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0]
     ajustar = getattr(sqrt_etmax, metodo)
-    
+
     resultado_array = ajustar(np.array(datos, dtype=float))
     resultado_lista = ajustar(datos)
-    
+
     np.testing.assert_allclose(
         resultado_lista,
         resultado_array,
@@ -20,7 +20,7 @@ def test_ajuste_equivalente_con_lista_y_array(metodo):
         atol=1e-12,
         equal_nan=False
     )
-    
+
 @pytest.mark.parametrize("metodo", ["fit_custom", "fit_lmoments"])
 @pytest.mark.parametrize(
     "datos, mensaje",
