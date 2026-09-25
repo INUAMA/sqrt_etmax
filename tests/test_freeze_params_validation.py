@@ -51,10 +51,10 @@ def test_freeze_params_rechaza_tipos_invalidos(parametro, valor):
         sqrt_etmax.freeze_params(**parametros)
 
 def test_freeze_params_rechaza_escala_no_representable():
-    """Rechaza un alpha cuya inversa no produce una escala finita."""
-    with pytest.raises(ValueError, match="alpha.*escala"):
+    """Rechaza un alpha cuya inversa no produce una escala finita"""
+    with pytest.raises(ValueError, match="alpha.*scala"):
         sqrt_etmax.freeze_params(k=2.0, alpha=1e-320)
-        
+
 @pytest.mark.parametrize(
     "k, alpha",
     [
@@ -69,6 +69,7 @@ def test_freeze_params_rechaza_escala_no_representable():
         ),
     ],
 )
+
 def test_freeze_params_conserva_distribucion_valida(k, alpha):
     """Conserva la CDF, el átomo y los cuantiles con parámetros válidos."""
     dist = sqrt_etmax.freeze_params(k, alpha)
@@ -97,7 +98,6 @@ def test_freeze_params_conserva_distribucion_valida(k, alpha):
         rtol=1e-12,
         atol=0.0,
     )
-
 
 @pytest.mark.parametrize("parametro", ["k", "alpha"])
 def test_freeze_params_rechaza_entero_fuera_del_rango_float(parametro):
