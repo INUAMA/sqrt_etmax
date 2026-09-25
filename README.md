@@ -41,7 +41,8 @@ datos = np.array([45.2, 56.1, 38.9, 78.4, 62.0, 41.5, 92.3, 55.6])
 
 # 2. Ajuste de parámetros (k, alpha)
 # Puedes utilizar fit_custom() (Máxima Verosimilitud) o fit_lmoments() (L-Momentos).
-# NOTA: fit_lmoments() ahora utiliza la función cuantil analítica exacta (W de Lambert) mejorando su precisión y rendimiento.
+# fit_lmoments() calcula los L-momentos teóricos mediante cuadratura de la PPF.
+
 k_est, alpha_est = sqrt_etmax.fit_custom(datos)
 print(f"Parámetros ajustados -> k: {k_est:.4f}, alpha: {alpha_est:.4f}")
 
@@ -141,6 +142,20 @@ print(f"F(0) calculado = {dist.cdf(0.0):.6f}")
 sample = dist.rvs(size=10000, random_state=42)
 print(f"Fracción de ceros = {np.mean(sample == 0):.3f}")
 ```
+### Cuantiles en el átomo
+
+Para `loc=0`, el cuantil es exactamente cero cuando
+`0 < p <= exp(-k)`. Con un desplazamiento `loc`, esas
+probabilidades devuelven `loc`.
+
+La evaluación utiliza Lambert W fuera de la zona próxima al salto.
+Cerca del salto utiliza una identidad equivalente basada en la
+gamma incompleta y calcula la distancia al límite mediante `log1p`
+para reducir la pérdida de precisión.
+
+La API admite probabilidades y parámetros con formas compatibles
+mediante broadcasting. Las distribuciones congeladas aplican
+la transformación `loc + scale * cuantil_estandarizado`.
 
 ## Cómo citar
 
