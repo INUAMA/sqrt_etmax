@@ -55,6 +55,27 @@ valor_T100 = dist.ppf(probabilidad_no_excedencia)
 
 print(f"Precipitación para T={T} años: {valor_T100:.2f} mm")
 ```
+## Muestras para los métodos de ajuste
+
+`fit_custom()` y `fit_lmoments()` comparten la normalización y
+validación de las muestras. Aceptan listas y arrays que se convierten
+internamente a un array de tipo float.
+
+La muestra debe ser unidimensional, contener al menos dos observaciones
+reales, finitas y no negativas, y tener al menos dos valores distintos.
+
+Se permiten ceros junto con valores positivos. Se rechazan las muestras
+constantes, incluidas las formadas únicamente por ceros, los números
+complejos y las observaciones enmascaradas. Un array enmascarado cuya
+máscara sea completamente falsa se acepta.
+
+Los datos originales del usuario permanecen sin modificaciones.
+La validación no elimina observaciones ni aplana matrices para
+hacerlas pasar por muestras unidimensionales.
+
+Las entradas inválidas producen `ValueError` antes del ajuste numérico.
+Superar la validación no garantiza que el ajuste sea viable o converja.
+
 
 ## Parametrización y masa en el origen
 

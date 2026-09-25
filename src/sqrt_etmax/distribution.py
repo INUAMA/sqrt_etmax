@@ -12,6 +12,72 @@ _GL_NODES, _GL_WEIGHTS = leggauss(256)
 _K_MIN = 0.001
 _K_MAX = 50000.0
 
+def _validate_sample(data):
+    """Valida y normaliza una muestra para los métodos de ajuste.
+
+    Args:
+        data (array_like): Observaciones de la muestra.
+
+    Returns:
+        numpy.ndarray: Muestra real validada, de tipo float.
+
+    Raises:
+        ValueError: Si la muestra incumple el contrato de entrada.
+    """
+    if np.ma.isMaskedArray(data) and np.any(np.ma.getmaskarray(data)):
+        raise ValueError(
+            "La muestra no puede contener observaciones enmascaradas."
+        )
+
+    # Conservamos el tipo para detectar complejos antes de convertir.
+    try:
+        data = np.asarray(data)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            "La muestra debe contener valores numéricos reales."
+        ) from exc
+
+    if np.iscomplexobj(data) or (
+        data.dtype.kind == "O"
+        and any(np.iscomplexobj(valor) for valor in data.flat)
+    ):
+        raise ValueError(
+            "La muestra no puede contener números complejos."
+        )
+
+    # Convertimos a float después de comprobar los tipos.
+    try:
+        data = np.asarray(data, dtype=float)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            "La muestra debe contener valores numéricos reales."
+        ) from exc
+
+    if data.ndim != 1:
+        raise ValueError("La muestra debe ser unidimensional.")
+
+    if data.size < 2:
+        raise ValueError(
+            "La muestra debe contener al menos 2 observaciones."
+        )
+
+    if not np.all(np.isfinite(data)):
+        raise ValueError(
+            "La muestra debe contener solo valores finitos."
+        )
+
+    if np.any(data < 0):
+        raise ValueError(
+            "La muestra debe contener valores no negativos."
+        )
+
+    if np.all(data == data[0]):
+        raise ValueError(
+            "La muestra debe contener al menos dos valores distintos."
+        )
+
+    return data
+
 class sqrt_etmax_gen(rv_continuous):
     """
     Implementación de la distribución SQRT-ETmax para hidrología española.
@@ -129,10 +195,12 @@ class sqrt_etmax_gen(rv_continuous):
         El método.fit() genérico de Scipy puede fallar con esta función no estándar.
         
         Args:
-            data (array_like): Datos a ajustar.
+            data (array_like): Muestra unidimensional de al menos dos
+                observaciones reales, finitas y no negativas, con al
+                menos dos valores distintos. Puede incluir ceros.
             
         Returns:
-            list: Lista con los parámetros [k, alpha] estimados.
+            numpy.ndarray: Parámetros [k, alpha] estimados.
         Notas:
             Los ceros exactos aportan -k a la log-verosimilitud,
             correspondiente a P(X=0) = exp(-k). Los valores positivos
@@ -147,7 +215,9 @@ class sqrt_etmax_gen(rv_continuous):
             RuntimeError: Si el optimizador no converge, devuelve
                 parámetros no finitos o no positivos, o el valor
                 final del objetivo no es finito.
+            ValueError: Si la muestra incumple el contrato de entrada.
         """
+        data = _validate_sample(data)
 
         def neg_log_likelihood(params, data):
             k, alpha = params
@@ -253,24 +323,22 @@ class sqrt_etmax_gen(rv_continuous):
         desde p_min = exp(−k) hasta 1.
 
         Args:
-            data (array_like): Datos a ajustar (máximos anuales de precipitación,
-                serie de n ≥ 2 observaciones positivas).
+            data (array_like): Muestra unidimensional de al menos dos
+                observaciones reales, finitas y no negativas, con al
+                menos dos valores distintos. Puede incluir ceros.
 
         Returns:
             list: Lista con los parámetros [k, alpha] estimados, donde k > 0
                 es el parámetro de forma y α > 0 es el parámetro de escala inverso.
 
         Raises:
-            ValueError: Si n < 2 (se necesitan al menos 2 datos para PWM) o
-                si l1 ≤ 0 o l2 ≤ 0 (serie constante o datos incompatibles).
+            ValueError: Si la muestra incumple el contrato de entrada
+                o sus L-momentos muestrales L1 o L2 no son positivos.
             RuntimeError: Si τ₂ muestral cae fuera del rango alcanzable por
                 la familia SQRT-ETmax, o si brentq no converge.
         """
+        data = _validate_sample(data)
         n = len(data)
-        if n < 2:
-            raise ValueError(
-                f"Se necesitan al menos 2 datos para L-momentos, se recibieron {n}"
-            )
 
         data_sorted = np.sort(data)
         i = np.arange(n, dtype=np.float64)

@@ -20,11 +20,19 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   Los fallos de convergencia incluyen el diagnóstico del optimizador.
   Se conserva el retorno de parámetros para resultados válidos.
   Resuelve #15.
+- `fit_custom()` y `fit_lmoments()` comparten la normalización y
+  validación de muestras. Se admiten listas y arrays válidos y se
+  rechazan entradas incompatibles mediante `ValueError` antes del
+  ajuste numérico. Se evita perder la parte imaginaria durante la
+  conversión, también en arrays de tipo object. Resuelve #17.
 
 ### Añadido
 - Pruebas de regresión para la contribución de ceros con distintos
   parámetros, la coherencia con la densidad positiva y un ajuste
   mixto contrastado con una referencia de verosimilitud perfilada.
+- Pruebas de equivalencia entre formatos de entrada, rechazo de
+  muestras inválidas y conservación de los valores, el orden y
+  la máscara de los datos originales.
 
 ## [0.3.0] - 2026-09-03
 
