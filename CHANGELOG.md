@@ -25,6 +25,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   rechazan entradas incompatibles mediante `ValueError` antes del
   ajuste numérico. Se evita perder la parte imaginaria durante la
   conversión, también en arrays de tipo object. Resuelve #17.
+- `freeze_params()` valida los parámetros escalares `k` y `alpha`
+  antes de calcular la escala y construir la distribución. Rechaza
+  tipos incompatibles, valores no finitos o no positivos y escalas
+  derivadas no representables mediante `ValueError`. Normaliza los
+  escalares admitidos de Python y NumPy a float. Resuelve #19.
 
 ### Añadido
 - Pruebas de regresión para la contribución de ceros con distintos
@@ -33,6 +38,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
 - Pruebas de equivalencia entre formatos de entrada, rechazo de
   muestras inválidas y conservación de los valores, el orden y
   la máscara de los datos originales.
+- Pruebas de validación de parámetros, límites de conversión a float
+  y conservación de la CDF, el átomo y los cuantiles al utilizar
+  parámetros válidos en `freeze_params()`.
 
 ## [0.3.0] - 2026-09-03
 
