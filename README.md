@@ -171,6 +171,45 @@ La API admite probabilidades y parámetros con formas compatibles
 mediante broadcasting. Las distribuciones congeladas aplican
 la transformación `loc + scale * cuantil_estandarizado`.
 
+### Log-verosimilitud mixta
+
+`log_likelihood(data, k, alpha)` evalúa la log-verosimilitud
+de una muestra con parámetros conocidos y devuelve un `float`.
+
+Los ceros exactos aportan `-k`, correspondiente a la masa
+`P(X=0) = exp(-k)`. Las observaciones positivas aportan su
+log-densidad, con `loc=0` y `scale=1/alpha`.
+
+```python
+from sqrt_etmax import sqrt_etmax
+
+valor = sqrt_etmax.log_likelihood(
+    [0.0, 1.0, 4.0, 8.0],
+    k=2.0,
+    alpha=0.7,
+)
+print(valor)  # Aproximadamente -11.1723491635
+```
+
+La muestra debe ser unidimensional, no vacía, real, finita
+y no negativa. Se admiten listas y arrays, observaciones
+individuales y muestras constantes, incluidos todos ceros.
+La función conserva los valores y el orden de la entrada.
+
+Los parámetros `k` y `alpha` deben ser escalares enteros
+o flotantes, finitos y estrictamente positivos; se rechazan
+booleanos, texto y entradas no escalares. Las entradas
+inválidas producen `ValueError`.
+
+`fit_custom` utiliza el mismo cálculo de log-verosimilitud,
+manteniendo su requisito de al menos dos observaciones
+y dos valores distintos.
+
+La suma de `logpdf` coincide con esta evaluación para muestras
+estrictamente positivas. Cuando hay ceros, debe utilizarse
+`log_likelihood`: la densidad continua no representa la masa
+puntual en el origen.
+
 ## Cómo citar
 
 Si utilizas `sqrt_etmax` en tu investigación, cita el artículo correspondiente:

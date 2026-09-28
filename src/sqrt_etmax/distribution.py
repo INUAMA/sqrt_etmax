@@ -12,11 +12,13 @@ _GL_NODES, _GL_WEIGHTS = leggauss(256)
 _K_MIN = 0.001
 _K_MAX = 50000.0
 
-def _validate_sample(data):
-    """Valida y normaliza una muestra para los métodos de ajuste.
+def _validate_sample(data, *, min_size=2, require_variation=True):
+    """Valida y normaliza una muestra con restricciones configurables.
 
     Args:
         data (array_like): Observaciones de la muestra.
+        min_size (int): Número mínimo de observaciones.
+        require_variation (bool): Exige al menos dos valores distintos.
 
     Returns:
         numpy.ndarray: Muestra real validada, de tipo float.
@@ -56,9 +58,9 @@ def _validate_sample(data):
     if data.ndim != 1:
         raise ValueError("La muestra debe ser unidimensional.")
 
-    if data.size < 2:
+    if data.size < min_size:
         raise ValueError(
-            "La muestra debe contener al menos 2 observaciones."
+            f"La muestra debe contener al menos {min_size} observaciones."
         )
 
     if not np.all(np.isfinite(data)):
@@ -71,7 +73,7 @@ def _validate_sample(data):
             "La muestra debe contener valores no negativos."
         )
 
-    if np.all(data == data[0]):
+    if require_variation and np.all(data == data[0]):
         raise ValueError(
             "La muestra debe contener al menos dos valores distintos."
         )
@@ -101,6 +103,20 @@ def _validate_positive_scalar(value, name):
         )
 
     return value
+
+def _mixed_log_likelihood(data, k, alpha):
+    """Evalúa la log-verosimilitud mixta con entradas ya validadas."""
+    positivos = data[data > 0.0]
+    u = np.sqrt(alpha) * np.sqrt(positivos)
+
+    log_densidad = (
+        np.log(k) + np.log(alpha) - np.log(2.0)
+        - u
+        - k * ((1.0 + u) * np.exp(-u))
+    )
+    n_ceros = np.count_nonzero(data == 0.0)
+
+    return float(np.sum(log_densidad) - k * n_ceros)
 
 class sqrt_etmax_gen(rv_continuous):
     """
@@ -238,6 +254,29 @@ class sqrt_etmax_gen(rv_continuous):
 
         return np.where(x <= 0, -np.inf, ln_cdf + ln_rest)
 
+    def log_likelihood(self, data, k, alpha):
+        """Evalúa la log-verosimilitud mixta con parámetros conocidos.
+
+        Args:
+            data (array_like): Muestra unidimensional no vacía, real,
+                finita y no negativa. Admite muestras constantes.
+            k (float): Parámetro de forma finito y positivo.
+            alpha (float): Escala inversa finita y positiva.
+
+        Returns:
+            float: Suma de las contribuciones de las observaciones.
+
+        Raises:
+            ValueError: Si la muestra o los parámetros no son válidos.
+        """
+        data = _validate_sample(
+            data, min_size=1, require_variation=False
+        )
+        k = _validate_positive_scalar(k, "k")
+        alpha = _validate_positive_scalar(alpha, "alpha")
+
+        return _mixed_log_likelihood(data, k, alpha)
+
     def fit_custom(self, data):
         """
         Método de ajuste robusto usando optimización directa de Log-Likelihood.
@@ -270,28 +309,20 @@ class sqrt_etmax_gen(rv_continuous):
 
         def neg_log_likelihood(params, data):
             k, alpha = params
-            if k <= 0 or alpha <= 0:
-                return np.inf # Penalización infinita para restringir el dominio (k>0, alpha>0)
 
-            # Log-Likelihood manual para mayor precisión numérica
-            # L = sum( ln(f(xi)) )
-            sqrt_ax = np.sqrt(alpha * data) # alpha actúa como inverso de scale
+            if (
+                not np.all(np.isfinite(params))
+                or k <= 0
+                or alpha <= 0
+            ):
+                return np.inf
 
-            # Término 1 proveniente de ln(F(x))
-            # Equivalente a la lógica en _cdf pero vectorizado
-            term1 = -k * (1 + sqrt_ax) * np.exp(-sqrt_ax)
-            # Término 2 proveniente de ln(derivada)
-            # Equivalente a la parte derivativa de _logpdf
-            term2 = np.log(k * alpha / 2.0) - sqrt_ax
+            log_verosimilitud = _mixed_log_likelihood(data, k, alpha)
 
-            # Los ceros aportan Log(P(X=0)) = -k
-            # Los valores positivos conservan su Log-densidad
-            log_aportaciones = np.where(
-                data == 0,
-                -k,
-                term1 + term2
-            )
-            return -np.sum(log_aportaciones)
+            if not np.isfinite(log_verosimilitud):
+                return np.inf
+
+            return -log_verosimilitud
 
         # Estimación inicial de parámetros (Semillas)
         # Basado en aproximaciones de momentos (Salas, 2004)
