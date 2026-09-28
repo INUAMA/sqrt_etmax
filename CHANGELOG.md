@@ -55,6 +55,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/), y el 
   broadcasting y distribuciones congeladas con loc/scale.
 - Pruebas del diagnóstico de L-momentos para L-ratios inferiores
   y superiores al rango numérico de búsqueda.
+- Método público `log_likelihood(data, k, alpha)` para evaluar
+  la log-verosimilitud mixta, con validación de muestras y
+  parámetros. Admite observaciones individuales y muestras
+  constantes, incluidos todos ceros (#26).
+
+### Cambiado
+- `fit_custom` comparte el núcleo de cálculo con `log_likelihood`, eliminando la fórmula duplicada y penalizando propuestas de parámetros u objetivos no finitos.
 
 ## [0.3.0] - 2026-09-03
 
